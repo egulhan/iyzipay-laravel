@@ -119,8 +119,6 @@ class IyzipayLaravel
                     continue;
                 }
             }
-
-            throw new TransactionSaveException(implode(', ', $messages));
         } else {
             try {
                 $transaction = $this->createTransactionOnIyzipay(
@@ -135,6 +133,8 @@ class IyzipayLaravel
                 $messages[] = $creditCard['cardNumber'] . ': ' . $e->getMessage();
             }
         }
+
+        throw new TransactionSaveException(implode(', ', $messages));
     }
 
     /**
