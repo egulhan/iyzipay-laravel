@@ -89,7 +89,7 @@ trait Payable
      */
     public function removeCreditCard(CreditCard $creditCard): bool
     {
-        if ( ! $this->creditCards->contains($creditCard)) {
+        if (!$this->creditCards->contains($creditCard)) {
             throw new CardRemoveException('This card does not belong to member!');
         }
 
@@ -104,11 +104,16 @@ trait Payable
      * @param int $installment
      * @param bool $subscription
      * @param null $creditCard
+     * @param bool $threeds
      * @return Transaction
      */
-    public function pay(Collection $products, $currency = 'TRY', $installment = 1, $subscription = false, $creditCard = null): Transaction
+    public function pay(Collection $products, $currency = 'TRY', $installment = 1, $subscription = false, $creditCard = null, $threeds = false): Transaction
     {
-        return IyzipayLaravel::singlePayment($this, $products, $currency, $installment, $subscription, $creditCard);
+        if($threeds){
+            return IyzipayLaravel::singlePaymentWithThreeds($this, $products, $currency, $installment, $subscription, $creditCard);
+        } else {
+            return IyzipayLaravel::singlePayment($this, $products, $currency, $installment, $subscription, $creditCard);
+        }
     }
 
     /**
@@ -122,9 +127,9 @@ trait Payable
         $this->subscriptions()->save(
             new Subscription([
                 'next_charge_amount' => $plan->price,
-                'currency'           => $plan->currency,
-                'next_charge_at'     => Carbon::now()->addDays($plan->trialDays)->startOfDay(),
-                'plan'               => $plan
+                'currency' => $plan->currency,
+                'next_charge_at' => Carbon::now()->addDays($plan->trialDays)->startOfDay(),
+                'plan' => $plan
             ])
         );
 
@@ -142,8 +147,7 @@ trait Payable
     public function isSubscribeTo(Plan $plan): bool
     {
         foreach ($this->subscriptions as $subscription) {
-            if ($subscription->plan == $plan)
-            {
+            if ($subscription->plan == $plan) {
                 return $subscription->next_charge_at > Carbon::today()->startOfDay();
             }
         }
@@ -179,6 +183,6 @@ trait Payable
      */
     public function isBillable(): bool
     {
-        return ! empty($this->bill_fields);
+        return !empty($this->bill_fields);
     }
 }

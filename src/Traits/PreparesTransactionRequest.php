@@ -102,6 +102,47 @@ trait PreparesTransactionRequest
     }
 
     /**
+     * Creates 3D secure on iyzipay.
+     *
+     * @param Payable $payable
+     * @param $creditCard
+     * @param array $attributes
+     * @param bool $subscription
+     *
+     * @return Payment
+     * @throws TransactionSaveException
+     */
+    protected function initializeThreedsOnIyzipay(
+        Payable $payable,
+        $creditCard,
+        array $attributes,
+        $subscription = false
+    ): Payment
+    {
+        $this->validateTransactionFields($attributes);
+        $paymentRequest = $this->createPaymentRequest($attributes, $subscription, true);
+        $paymentRequest->setPaymentCard($this->preparePaymentCard($payable, $creditCard));
+        $paymentRequest->setBuyer($this->prepareBuyer($payable));
+        $paymentRequest->setShippingAddress($this->prepareAddress($payable, 'shippingAddress'));
+        $paymentRequest->setBillingAddress($this->prepareAddress($payable, 'billingAddress'));
+        $paymentRequest->setBasketItems($this->prepareBasketItems($attributes['products']));
+
+        try {
+            $payment = Payment::create($paymentRequest, $this->getOptions());
+        } catch (\Exception $e) {
+            throw new TransactionSaveException();
+        }
+
+        unset($paymentRequest);
+
+        if ($payment->getStatus() != 'success') {
+            throw new TransactionSaveException($payment->getErrorMessage());
+        }
+
+        return $payment;
+    }
+
+    /**
      * @param Transaction $transaction
      *
      * @return Cancel
@@ -131,9 +172,10 @@ trait PreparesTransactionRequest
      *
      * @param array $attributes
      * @param bool $subscription
+     * @param bool $threeds
      * @return CreatePaymentRequest
      */
-    private function createPaymentRequest(array $attributes, $subscription = false): CreatePaymentRequest
+    private function createPaymentRequest(array $attributes, $subscription = false, $threeds=false): CreatePaymentRequest
     {
         $paymentRequest = new CreatePaymentRequest();
         $paymentRequest->setLocale($this->getLocale());
@@ -149,6 +191,10 @@ trait PreparesTransactionRequest
         $paymentRequest->setInstallment($attributes['installment']);
         $paymentRequest->setPaymentChannel(PaymentChannel::WEB);
         $paymentRequest->setPaymentGroup(($subscription) ? PaymentGroup::SUBSCRIPTION : PaymentGroup::PRODUCT);
+
+        if($threeds){
+            $paymentRequest->setCallbackUrl($this->getThreedsCallbackUrl());
+        }
 
         return $paymentRequest;
     }

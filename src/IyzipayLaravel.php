@@ -32,11 +32,18 @@ class IyzipayLaravel
      * @var Options
      */
     protected $apiOptions;
+    /**
+     * @var $threedsCallbackUrl
+     */
+    protected $threedsCallbackUrl;
 
     public function __construct()
     {
         $this->initializeApiOptions();
         $this->checkApiOptions();
+
+        // 3D secure callback URL
+        $this->setThreedsCallbackUrl(config('iyzipay.threeds'));
     }
 
     /**
@@ -132,6 +139,36 @@ class IyzipayLaravel
             } catch (TransactionSaveException $e) {
                 $messages[] = $creditCard['cardNumber'] . ': ' . $e->getMessage();
             }
+        }
+
+        throw new TransactionSaveException(implode(', ', $messages));
+    }
+
+    /**
+     * @param PayableContract $payable
+     * @param Collection $products
+     * @param $currency
+     * @param $installment
+     * @param bool $subscription
+     * @param null $creditCard
+     * @return Transaction $transactionModel
+     * @throws PayableMustHaveCreditCardException
+     * @throws TransactionSaveException
+     */
+    public function singlePaymentWithThreeds(Payable $payable, Collection $products, $currency, $installment, $subscription = false, $creditCard = null): Transaction
+    {
+        // TODO: BURADA KALDIM
+        try {
+            $transaction = $this->initializeThreedsOnIyzipay(
+                $payable,
+                $creditCard,
+                compact('products', 'currency', 'installment'),
+                $subscription
+            );
+
+            return $this->storeTransactionModel($transaction, $payable, $products, $creditCard);
+        } catch (TransactionSaveException $e) {
+            $messages[] = $creditCard['cardNumber'] . ': ' . $e->getMessage();
         }
 
         throw new TransactionSaveException(implode(', ', $messages));
@@ -268,5 +305,21 @@ class IyzipayLaravel
     protected function getOptions(): Options
     {
         return $this->apiOptions;
+    }
+
+    /**
+     * @return string
+     */
+    public function getThreedsCallbackUrl(): string
+    {
+        return $this->threedsCallbackUrl;
+    }
+
+    /**
+     * @param mixed $threedsCallbackUrl
+     */
+    public function setThreedsCallbackUrl($threedsCallbackUrl)
+    {
+        $this->threedsCallbackUrl = $threedsCallbackUrl;
     }
 }
