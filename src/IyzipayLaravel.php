@@ -251,7 +251,8 @@ class IyzipayLaravel
         if ($creditCard instanceof CreditCard) {
             $transactionModel->creditCard()->associate($creditCard);
         } else {
-            $transactionModel->credit_card_number = $creditCard['cardNumber'];
+            $creditCardBinNumber = substr($creditCard['cardNumber'], 0, 6);
+            $transactionModel->credit_card_number = $creditCardBinNumber;
         }
 
         $payable->transactions()->save($transactionModel);
