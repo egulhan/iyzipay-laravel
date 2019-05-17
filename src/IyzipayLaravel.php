@@ -11,6 +11,7 @@ use Iyzico\IyzipayLaravel\Exceptions\Transaction\TransactionVoidException;
 use Iyzico\IyzipayLaravel\Exceptions\Iyzipay\IyzipayAuthenticationException;
 use Iyzico\IyzipayLaravel\Exceptions\Iyzipay\IyzipayConnectionException;
 use Iyzico\IyzipayLaravel\Models\CreditCard;
+use Iyzico\IyzipayLaravel\Models\PaymentLog;
 use Iyzico\IyzipayLaravel\Models\Transaction;
 use Iyzico\IyzipayLaravel\Traits\ManagesPlans;
 use Iyzico\IyzipayLaravel\Traits\PreparesCreditCardRequest;
@@ -22,6 +23,7 @@ use Iyzipay\Model\Payment;
 use Iyzipay\Options;
 use Iyzipay\Model\Locale;
 use Iyzico\IyzipayLaravel\PayableContract as Payable;
+use Iyzipay\Model\ThreedsInitialize;
 
 class IyzipayLaravel
 {
@@ -100,43 +102,67 @@ class IyzipayLaravel
      * @param $installment
      * @param bool $subscription
      * @param null $creditCard
-     * @return Transaction $transactionModel
+     * @param bool $isThreeds
+     * @return Transaction|ThreedsInitialize
      * @throws PayableMustHaveCreditCardException
      * @throws TransactionSaveException
      */
-    public function singlePayment(Payable $payable, Collection $products, $currency, $installment, $subscription = false, $creditCard = null): Transaction
+    public function singlePayment(Payable $payable, Collection $products, $currency, $installment, $subscription = false, $creditCard = null, $isThreeds = false)
     {
+        $paymentMethod = $isThreeds ? 'initializeThreedsOnIyzipay' : 'createTransactionOnIyzipay';
+
         if (!isset($creditCard)) {
             $this->validateBillable($payable);
             $this->validateHasCreditCard($payable);
 
             $messages = []; // @todo imporove here
             foreach ($payable->creditCards as $creditCard) {
+                // log payment request
+                $log = $this->logPayment($payable, $products, $currency, $installment, $subscription, $creditCard->number, $isThreeds);
+
                 try {
-                    $transaction = $this->createTransactionOnIyzipay(
+                    $result = $this->$paymentMethod(
                         $payable,
                         $creditCard,
                         compact('products', 'currency', 'installment'),
                         $subscription
                     );
 
-                    return $this->storeTransactionModel($transaction, $payable, $products, $creditCard);
+                    if ($isThreeds) {
+                        return $result;
+                    }
+
+                    return $this->storeTransactionModel($result, $payable, $products, $creditCard);
                 } catch (TransactionSaveException $e) {
+                    $log->error_message = $e->getMessage();
+                    $log->save();
+
                     $messages[] = $creditCard->number . ': ' . $e->getMessage();
                     continue;
                 }
             }
         } else {
+            // log payment request
+            $log = $this->logPayment($payable, $products, $currency, $installment, $subscription,
+                $this->extractCardBinNumberFromCardNumber($creditCard['cardNumber']), $isThreeds);
+
             try {
-                $transaction = $this->createTransactionOnIyzipay(
+                $result = $this->$paymentMethod(
                     $payable,
                     $creditCard,
                     compact('products', 'currency', 'installment'),
                     $subscription
                 );
 
-                return $this->storeTransactionModel($transaction, $payable, $products, $creditCard);
+                if ($isThreeds) {
+                    return $result;
+                }
+
+                return $this->storeTransactionModel($result, $payable, $products, $creditCard);
             } catch (TransactionSaveException $e) {
+                $log->error_message = $e->getMessage();
+                $log->save();
+
                 $messages[] = $creditCard['cardNumber'] . ': ' . $e->getMessage();
             }
         }
@@ -144,34 +170,9 @@ class IyzipayLaravel
         throw new TransactionSaveException(implode(', ', $messages));
     }
 
-    /**
-     * @param PayableContract $payable
-     * @param Collection $products
-     * @param $currency
-     * @param $installment
-     * @param bool $subscription
-     * @param null $creditCard
-     * @return Transaction $transactionModel
-     * @throws PayableMustHaveCreditCardException
-     * @throws TransactionSaveException
-     */
-    public function singlePaymentWithThreeds(Payable $payable, Collection $products, $currency, $installment, $subscription = false, $creditCard = null): Transaction
+    private function extractCardBinNumberFromCardNumber($cardNumber)
     {
-        // TODO: BURADA KALDIM
-        try {
-            $transaction = $this->initializeThreedsOnIyzipay(
-                $payable,
-                $creditCard,
-                compact('products', 'currency', 'installment'),
-                $subscription
-            );
-
-            return $this->storeTransactionModel($transaction, $payable, $products, $creditCard);
-        } catch (TransactionSaveException $e) {
-            $messages[] = $creditCard['cardNumber'] . ': ' . $e->getMessage();
-        }
-
-        throw new TransactionSaveException(implode(', ', $messages));
+        return substr($cardNumber, 0, 6);
     }
 
     /**
@@ -295,6 +296,22 @@ class IyzipayLaravel
         $payable->transactions()->save($transactionModel);
 
         return $transactionModel->fresh();
+    }
+
+    private function logPayment($payable, $products, $currency, $installment, $subscription, $creditCardBinNumber, $isThreeds = false)
+    {
+        // TODO: BURADA KALDIM
+        $log = new PaymentLog([
+            'billable_id' => $payable->id,
+            'is_threeds' => (int)$isThreeds,
+            'products' => $products->toArray(),
+            'installment'=>$installment,
+            'sub'=>$installment,
+            'iyzipay_key' => null,
+            'currency' => $currency,
+        ]);
+
+        return $log;
     }
 
     protected function getLocale(): string

@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
 use Iyzico\IyzipayLaravel\IyzipayLaravelFacade as IyzipayLaravel;
+use Iyzipay\Model\ThreedsInitialize;
 
 trait Payable
 {
@@ -104,16 +105,12 @@ trait Payable
      * @param int $installment
      * @param bool $subscription
      * @param null $creditCard
-     * @param bool $threeds
-     * @return Transaction
+     * @param bool $isThreeds
+     * @return Transaction|ThreedsInitialize
      */
-    public function pay(Collection $products, $currency = 'TRY', $installment = 1, $subscription = false, $creditCard = null, $threeds = false): Transaction
+    public function pay(Collection $products, $currency = 'TRY', $installment = 1, $subscription = false, $creditCard = null, $isThreeds = false)
     {
-        if($threeds){
-            return IyzipayLaravel::singlePaymentWithThreeds($this, $products, $currency, $installment, $subscription, $creditCard);
-        } else {
-            return IyzipayLaravel::singlePayment($this, $products, $currency, $installment, $subscription, $creditCard);
-        }
+        return IyzipayLaravel::singlePayment($this, $products, $currency, $installment, $subscription, $creditCard, $isThreeds);
     }
 
     /**
