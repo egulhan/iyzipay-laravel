@@ -29,6 +29,10 @@ interface PayableContract
         $creditCard = null, $isThreeds = false
     );
 
+    public function handleThreedsPaymentCallbackRequest(
+        $status, $paymentId, $conversationData, $conversationId, $mdStatus, Collection $products, $creditCard
+    );
+
     public function isBillable(): bool;
 
     public function subscribe(Plan $plan): void;
