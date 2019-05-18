@@ -28,6 +28,7 @@ use Iyzipay\Request\CreateCancelRequest;
 use Iyzipay\Request\CreatePaymentRequest;
 use Iyzipay\Model\ThreedsInitialize;
 use Iyzipay\Model\ThreedsPayment;
+use Iyzipay\Request\CreateThreedsPaymentRequest;
 
 trait PreparesTransactionRequest
 {
@@ -117,10 +118,9 @@ trait PreparesTransactionRequest
      * @param bool $subscription
      *
      * @param null $conversationId
-     * @return Payment
+     * @return mixed
      * @throws ThreedsTransactionException
      * @throws TransactionFieldsException
-     * @throws TransactionSaveException
      */
     protected function initializeThreedsOnIyzipay(
         Payable $payable,
@@ -148,8 +148,11 @@ trait PreparesTransactionRequest
         unset($paymentRequest);
 
         if ($threedsInit->getStatus() != 'success') {
-            throw new ThreedsTransactionException($threedsInit->getErrorMessage(),
-                $threedsInit->getConversationId(), ThreedsPaymentStepLog::STEP_INIT);
+            throw new ThreedsTransactionException(
+                $threedsInit->getErrorMessage(),
+                $threedsInit->getConversationId(),
+                ThreedsPaymentStepLog::STEP_INIT
+            );
         }
 
         return $threedsInit;
@@ -165,10 +168,13 @@ trait PreparesTransactionRequest
      */
     protected function payWithThreeds($paymentId, $conversationData, $conversationId)
     {
-        $paymentRequest = $this->createThreedsPaymentRequest($paymentId, $conversationData);
+        $paymentRequest = new CreateThreedsPaymentRequest();
+        $paymentRequest->setPaymentId($paymentId);
+        $paymentRequest->setConversationData($conversationData);
+        $paymentRequest->setConversationId($conversationId);
 
         try {
-            $payment = ThreedsPayment($paymentRequest, $this->getOptions());
+            $payment = ThreedsPayment::create($paymentRequest, $this->getOptions());
 
             if ($payment->getStatus() != 'success') {
                 throw new \Exception($payment->getErrorMessage());

@@ -226,14 +226,14 @@ class IyzipayLaravel
             'step' => ThreedsPaymentStepLog::STEP_REQUESTED_CALLBACK_URL,
             'payload' => compact('status', 'paymentId', 'conversationData', 'conversationId', 'mdStatus'),
         ]);
-        $paymentLog->addThreedPaymentStepLog($threedsPaymentStepLog);
+        $paymentLog->addThreedsPaymentStepLog($threedsPaymentStepLog);
 
         if ($status == 'success') {
             $threedsPaymentStepLog = new ThreedsPaymentStepLog([
                 'step' => ThreedsPaymentStepLog::STEP_PAY_WITH_THREEDS,
                 'payload' => compact('paymentId', 'conversationData'),
             ]);
-            $paymentLog->addThreedPaymentStepLog($threedsPaymentStepLog);
+            $paymentLog->addThreedsPaymentStepLog($threedsPaymentStepLog);
 
             try {
                 $payment = $this->payWithThreeds($paymentId, $conversationData, $conversationId);
@@ -343,14 +343,14 @@ class IyzipayLaravel
     }
 
     /**
-     * @param Payment $transaction
+     * @param $transaction
      * @param PayableContract $payable
      * @param Collection $products
      * @param $creditCard
      * @return Transaction
      */
     private function storeTransactionModel(
-        Payment $transaction,
+        $transaction,
         Payable $payable,
         Collection $products,
         $creditCard

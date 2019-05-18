@@ -120,19 +120,16 @@ trait Payable
      * @param $conversationData
      * @param $conversationId
      * @param $mdStatus
-     * @param Payable $payable
      * @param Collection $products
      * @param $creditCard
      * @return mixed
      */
     public function handleThreedsPaymentCallbackRequest(
-        $status, $paymentId, $conversationData, $conversationId, $mdStatus,
-        Payable $payable, Collection $products, $creditCard
+        $status, $paymentId, $conversationData, $conversationId, $mdStatus, Collection $products, $creditCard
     )
     {
         return IyzipayLaravel::handleThreedsPaymentCallbackRequest(
-            $status, $paymentId, $conversationData, $conversationId, $mdStatus,
-            $payable, $products, $creditCard
+            $status, $paymentId, $conversationData, $conversationId, $mdStatus, $this, $products, $creditCard
         );
     }
 
