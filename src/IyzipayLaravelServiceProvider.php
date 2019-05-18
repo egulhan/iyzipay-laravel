@@ -56,7 +56,7 @@ class IyzipayLaravelServiceProvider extends ServiceProvider
 
         if (!class_exists('CreateThreedsPaymentStepLogsTable')) {
             $this->publishes([
-                __DIR__ . '/../database/migrations/create_threeds_payment_step_logs_table.php.stub' => database_path('migrations/' . date('Y_m_d_His', time()) . 'create_threeds_payment_step_logs_table.php'),
+                __DIR__ . '/../database/migrations/create_threeds_payment_step_logs_table.php.stub' => database_path('migrations/' . date('Y_m_d_His', time()) . '_create_threeds_payment_step_logs_table.php'),
             ], 'migrations');
         }
 
