@@ -15,6 +15,7 @@ class PaymentLog extends Model
     protected $fillable = [
         'result',
         'error_message',
+        'conversation_id',
         'billable_id',
         'is_threeds',
         'credit_card_id',
@@ -52,7 +53,7 @@ class PaymentLog extends Model
         return $this->hasMany(ThreedsPaymentStepLog::class);
     }
 
-    public function addThreedPaymentStepLog($threedsPaymentStepLog)
+    public function addThreedsPaymentStepLog($threedsPaymentStepLog)
     {
         $method = is_array($threedsPaymentStepLog) ? 'saveMany' : 'save';
         $this->threedsPaymentStepLogs()->$method($threedsPaymentStepLog);

@@ -128,7 +128,7 @@ trait PreparesTransactionRequest
         array $attributes,
         $subscription = false,
         $conversationId = null
-    ): Payment
+    ): ThreedsInitialize
     {
         $this->validateTransactionFields($attributes);
         $paymentRequest = $this->createPaymentRequest($attributes, $subscription, true, $conversationId);
@@ -139,7 +139,7 @@ trait PreparesTransactionRequest
         $paymentRequest->setBasketItems($this->prepareBasketItems($attributes['products']));
 
         try {
-            $threedsInit = ThreedsInitialize($paymentRequest, $this->getOptions());
+            $threedsInit = ThreedsInitialize::create($paymentRequest, $this->getOptions());
         } catch (\Exception $e) {
             throw new ThreedsTransactionException('can not initialize 3D secure payment',
                 $conversationId, ThreedsPaymentStepLog::STEP_INIT);
