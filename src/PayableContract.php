@@ -24,7 +24,10 @@ interface PayableContract
 
     public function removeCreditCard(CreditCard $creditCard): bool;
 
-    public function pay(Collection $products, $currency = 'TRY', $installment = 1): Transaction;
+    public function pay(
+        Collection $products, $currency = 'TRY', $installment = 1, $subscription = false,
+        $creditCard = null, $isThreeds = false
+    );
 
     public function isBillable(): bool;
 
