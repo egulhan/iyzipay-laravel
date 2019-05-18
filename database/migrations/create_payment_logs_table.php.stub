@@ -12,10 +12,11 @@ class CreatePaymentLogsTable extends Migration
             $table->increments('id');
             $table->tinyInteger('result')->default(0);
             $table->text('error_message')->nullable();
+            $table->string('conversation_id')->index();
             $table->string('billable_id')->index();
             $table->unsignedTinyInteger('is_threeds')->default(0);
             $table->string('credit_card_number', 10)->nullable();
-            $table->unsignedInteger('subscription_id')->nullable();
+            $table->unsignedInteger('subscription')->default(0);
             $table->double('amount')->nullable();
             $table->string('currency', 3)->default('TRY');
             $table->tinyInteger('installment')->default(1);

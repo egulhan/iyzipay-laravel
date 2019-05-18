@@ -114,6 +114,29 @@ trait Payable
     }
 
     /**
+     * Handles 3D secure payment callback request
+     * @param $status
+     * @param $paymentId
+     * @param $conversationData
+     * @param $conversationId
+     * @param $mdStatus
+     * @param Payable $payable
+     * @param Collection $products
+     * @param $creditCard
+     * @return mixed
+     */
+    public function handleThreedsPaymentCallbackRequest(
+        $status, $paymentId, $conversationData, $conversationId, $mdStatus,
+        Payable $payable, Collection $products, $creditCard
+    )
+    {
+        return IyzipayLaravel::handleThreedsPaymentCallbackRequest(
+            $status, $paymentId, $conversationData, $conversationId, $mdStatus,
+            $payable, $products, $creditCard
+        );
+    }
+
+    /**
      * Subscribe to a plan.
      * @param Plan $plan
      */

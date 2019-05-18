@@ -3,9 +3,11 @@
 namespace Iyzico\IyzipayLaravel\Traits;
 
 use Iyzico\IyzipayLaravel\Exceptions\Fields\TransactionFieldsException;
+use Iyzico\IyzipayLaravel\Exceptions\Transaction\ThreedsTransactionException;
 use Iyzico\IyzipayLaravel\Exceptions\Transaction\TransactionSaveException;
 use Iyzico\IyzipayLaravel\Exceptions\Transaction\TransactionVoidException;
 use Iyzico\IyzipayLaravel\Models\CreditCard;
+use Iyzico\IyzipayLaravel\Models\ThreedsPaymentStepLog;
 use Iyzico\IyzipayLaravel\Models\Transaction;
 use Iyzico\IyzipayLaravel\PayableContract as Payable;
 use Iyzico\IyzipayLaravel\ProductContract;
@@ -25,6 +27,7 @@ use Iyzipay\Options;
 use Iyzipay\Request\CreateCancelRequest;
 use Iyzipay\Request\CreatePaymentRequest;
 use Iyzipay\Model\ThreedsInitialize;
+use Iyzipay\Model\ThreedsPayment;
 
 trait PreparesTransactionRequest
 {
@@ -69,18 +72,21 @@ trait PreparesTransactionRequest
      * @param array $attributes
      * @param bool $subscription
      *
+     * @param null $conversationId
      * @return Payment
+     * @throws TransactionFieldsException
      * @throws TransactionSaveException
      */
     protected function createTransactionOnIyzipay(
         Payable $payable,
         $creditCard,
         array $attributes,
-        $subscription = false
+        $subscription = false,
+        $conversationId = null
     ): Payment
     {
         $this->validateTransactionFields($attributes);
-        $paymentRequest = $this->createPaymentRequest($attributes, $subscription);
+        $paymentRequest = $this->createPaymentRequest($attributes, $subscription, false, $conversationId);
         $paymentRequest->setPaymentCard($this->preparePaymentCard($payable, $creditCard));
         $paymentRequest->setBuyer($this->prepareBuyer($payable));
         $paymentRequest->setShippingAddress($this->prepareAddress($payable, 'shippingAddress'));
@@ -96,32 +102,36 @@ trait PreparesTransactionRequest
         unset($paymentRequest);
 
         if ($payment->getStatus() != 'success') {
-            throw new TransactionSaveException($payment->getErrorMessage());
+            throw new TransactionSaveException($payment->getErrorMessage(), $payment->getConversationId());
         }
 
         return $payment;
     }
 
     /**
-     * Initialize 3D secure on iyzipay.
+     * Initializes 3D secure on iyzipay.
      *
      * @param Payable $payable
      * @param $creditCard
      * @param array $attributes
      * @param bool $subscription
      *
-     * @return ThreedsInitialize
+     * @param null $conversationId
+     * @return Payment
+     * @throws ThreedsTransactionException
+     * @throws TransactionFieldsException
      * @throws TransactionSaveException
      */
     protected function initializeThreedsOnIyzipay(
         Payable $payable,
         $creditCard,
         array $attributes,
-        $subscription = false
+        $subscription = false,
+        $conversationId = null
     ): Payment
     {
         $this->validateTransactionFields($attributes);
-        $paymentRequest = $this->createPaymentRequest($attributes, $subscription, true);
+        $paymentRequest = $this->createPaymentRequest($attributes, $subscription, true, $conversationId);
         $paymentRequest->setPaymentCard($this->preparePaymentCard($payable, $creditCard));
         $paymentRequest->setBuyer($this->prepareBuyer($payable));
         $paymentRequest->setShippingAddress($this->prepareAddress($payable, 'shippingAddress'));
@@ -131,18 +141,44 @@ trait PreparesTransactionRequest
         try {
             $threedsInit = ThreedsInitialize($paymentRequest, $this->getOptions());
         } catch (\Exception $e) {
-            throw new TransactionSaveException();
+            throw new ThreedsTransactionException('can not initialize 3D secure payment',
+                $conversationId, ThreedsPaymentStepLog::STEP_INIT);
         }
 
         unset($paymentRequest);
 
         if ($threedsInit->getStatus() != 'success') {
-            // Eğer status failure gelir ise bu,
-            // banka bu kart ile 3D işlemine başlanması için uygun olan HTML datasını göndermemiş demektir.
-            throw new TransactionSaveException($threedsInit->getErrorMessage());
+            throw new ThreedsTransactionException($threedsInit->getErrorMessage(),
+                $threedsInit->getConversationId(), ThreedsPaymentStepLog::STEP_INIT);
         }
 
         return $threedsInit;
+    }
+
+    /**
+     * Pays with 3D secure (this should must called after initializeThreedsOnIyzipay)
+     * @param $paymentId
+     * @param $conversationData
+     * @param $conversationId
+     * @return ThreedsPayment $payment
+     * @throws ThreedsTransactionException
+     */
+    protected function payWithThreeds($paymentId, $conversationData, $conversationId)
+    {
+        $paymentRequest = $this->createThreedsPaymentRequest($paymentId, $conversationData);
+
+        try {
+            $payment = ThreedsPayment($paymentRequest, $this->getOptions());
+
+            if ($payment->getStatus() != 'success') {
+                throw new \Exception($payment->getErrorMessage());
+            }
+        } catch (\Exception $e) {
+            throw new ThreedsTransactionException($e->getMessage(),
+                $conversationId, ThreedsPaymentStepLog::STEP_PAY_WITH_THREEDS);
+        }
+
+        return $payment;
     }
 
     /**
@@ -176,9 +212,10 @@ trait PreparesTransactionRequest
      * @param array $attributes
      * @param bool $subscription
      * @param bool $threeds
+     * @param null $conversationId
      * @return CreatePaymentRequest
      */
-    private function createPaymentRequest(array $attributes, $subscription = false, $threeds = false): CreatePaymentRequest
+    private function createPaymentRequest(array $attributes, $subscription = false, $threeds = false, $conversationId = null): CreatePaymentRequest
     {
         $paymentRequest = new CreatePaymentRequest();
         $paymentRequest->setLocale($this->getLocale());
@@ -197,6 +234,10 @@ trait PreparesTransactionRequest
 
         if ($threeds) {
             $paymentRequest->setCallbackUrl($this->getThreedsCallbackUrl());
+        }
+
+        if (isset($conversationId)) {
+            $paymentRequest->setConversationId($conversationId);
         }
 
         return $paymentRequest;

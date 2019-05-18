@@ -14,7 +14,7 @@ class CreateThreedsPaymentStepLogsTable extends Migration
             $table->tinyInteger('result')->default(0);
             $table->text('error_message')->nullable();
             $table->tinyInteger('step');
-            $table->text('payload');
+            $table->text('payload')->nullable();
             $table->text('response')->nullable();
             $table->timestamps();
         });

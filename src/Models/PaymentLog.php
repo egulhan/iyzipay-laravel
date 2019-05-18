@@ -5,6 +5,7 @@ namespace Iyzico\IyzipayLaravel\Models;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PaymentLog extends Model
 {
@@ -44,5 +45,18 @@ class PaymentLog extends Model
     public function subscription(): BelongsTo
     {
         return $this->belongsTo(Subscription::class);
+    }
+
+    public function threedsPaymentStepLogs(): HasMany
+    {
+        return $this->hasMany(ThreedsPaymentStepLog::class);
+    }
+
+    public function addThreedPaymentStepLog($threedsPaymentStepLog)
+    {
+        $method = is_array($threedsPaymentStepLog) ? 'saveMany' : 'save';
+        $this->threedsPaymentStepLogs()->$method($threedsPaymentStepLog);
+
+        return $threedsPaymentStepLog;
     }
 }

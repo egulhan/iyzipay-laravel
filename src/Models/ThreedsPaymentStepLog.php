@@ -13,7 +13,7 @@ class ThreedsPaymentStepLog extends Model
     // step options
     const STEP_INIT = 1;
     const STEP_REQUESTED_CALLBACK_URL = 2;
-    const STEP_MAKE_THREEDS_PAYMENT = 3;
+    const STEP_PAY_WITH_THREEDS = 3;
 
     protected $fillable = [
         'payment_log_id',
