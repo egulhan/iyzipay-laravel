@@ -28,7 +28,12 @@ abstract class StorableClass
     private function setAttributes(array $attributes = []): StorableClass
     {
         foreach ($attributes as $attr => $value) {
-            $attr        = camel_case($attr);
+            if(class_exists('Illuminate\Support\Str')){
+                $attr        = \Illuminate\Support\Str::camel($attr);
+            } else {
+                $attr        = camel_case($attr);
+            }
+
             $this->$attr = $value;
         }
 
